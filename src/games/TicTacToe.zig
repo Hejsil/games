@@ -63,27 +63,41 @@ pub fn update(game: *Game) void {
 }
 
 pub fn draw(game: *Game) void {
-    c.ClearBackground(c.RAYWHITE);
-
     const render_size = renderSize();
     const center_cell = cellRect(render_size, 1, 1);
     const thickness = center_cell.width / 20;
-    const font_size: c_int = @intFromFloat(center_cell.width / 2);
+    const font_size = center_cell.width / 2;
 
     var scores_buf: [100]u8 = undefined;
-    const scores = std.fmt.bufPrintZ(&scores_buf, "X {} | {} O", .{
+    const scores = std.fmt.bufPrintZ(&scores_buf, "{} | {}", .{
         game.scores[@intFromEnum(Player.x)],
         game.scores[@intFromEnum(Player.o)],
     }) catch unreachable;
 
-    const scores_size: f32 = @floatFromInt(c.MeasureText(scores.ptr, font_size));
-    const score_pos = (center_cell.x + center_cell.width / 2) - scores_size / 2;
+    const center_x = (center_cell.x + center_cell.width / 2);
+    const scores_size: f32 = @floatFromInt(c.MeasureText(scores.ptr, @intFromFloat(font_size)));
+    const score_pos = center_x - scores_size / 2;
     c.DrawText(
         scores.ptr,
         @intFromFloat(score_pos),
         @intFromFloat(thickness),
-        font_size,
-        c.LIGHTGRAY,
+        @intFromFloat(font_size),
+        colors.foreground,
+    );
+
+    // trial and error math to make the symbols line up with the text
+    const symbol_size = font_size * 0.5;
+    drawX(
+        (center_x - symbol_size * 0.5) - symbol_size * 3,
+        thickness + symbol_size * 0.4,
+        symbol_size,
+        thickness,
+    );
+    drawO(
+        (center_x - symbol_size * 0.5) + symbol_size * 3,
+        thickness + symbol_size * 0.4,
+        symbol_size,
+        thickness,
     );
 
     c.DrawLineEx(
@@ -96,7 +110,7 @@ pub fn draw(game: *Game) void {
             .y = center_cell.y + center_cell.height * 2,
         },
         thickness,
-        c.LIGHTGRAY,
+        colors.foreground,
     );
 
     c.DrawLineEx(
@@ -109,7 +123,7 @@ pub fn draw(game: *Game) void {
             .y = center_cell.y + center_cell.height * 2,
         },
         thickness,
-        c.LIGHTGRAY,
+        colors.foreground,
     );
     c.DrawLineEx(
         .{
@@ -121,7 +135,7 @@ pub fn draw(game: *Game) void {
             .y = center_cell.y + center_cell.height * 2,
         },
         thickness,
-        c.LIGHTGRAY,
+        colors.foreground,
     );
     c.DrawLineEx(
         .{
@@ -133,7 +147,7 @@ pub fn draw(game: *Game) void {
             .y = center_cell.y,
         },
         thickness,
-        c.LIGHTGRAY,
+        colors.foreground,
     );
     c.DrawLineEx(
         .{
@@ -145,7 +159,7 @@ pub fn draw(game: *Game) void {
             .y = center_cell.y + center_cell.height,
         },
         thickness,
-        c.LIGHTGRAY,
+        colors.foreground,
     );
 
     for (0..3) |y| {
@@ -157,47 +171,50 @@ pub fn draw(game: *Game) void {
             const x_is_set: u1 = @truncate(game.bitboards[@intFromEnum(Player.x)] >> pos);
             const o_is_set: u1 = @truncate(game.bitboards[@intFromEnum(Player.o)] >> pos);
             if (x_is_set != 0) {
-                c.DrawLineEx(
-                    .{
-                        .x = cell_rect.x + padding,
-                        .y = cell_rect.y + padding,
-                    },
-                    .{
-                        .x = (cell_rect.x + cell_rect.width) - padding,
-                        .y = (cell_rect.y + cell_rect.height) - padding,
-                    },
+                drawX(
+                    cell_rect.x + padding,
+                    cell_rect.y + padding,
+                    cell_rect.width - (padding * 2),
                     thickness,
-                    c.LIGHTGRAY,
-                );
-                c.DrawLineEx(
-                    .{
-                        .x = (cell_rect.x + cell_rect.width) - padding,
-                        .y = cell_rect.y + padding,
-                    },
-                    .{
-                        .x = cell_rect.x + padding,
-                        .y = (cell_rect.y + cell_rect.height) - padding,
-                    },
-                    thickness,
-                    c.LIGHTGRAY,
                 );
             }
             if (o_is_set != 0) {
-                c.DrawRing(
-                    .{
-                        .x = cell_rect.x + cell_rect.width / 2,
-                        .y = cell_rect.y + cell_rect.height / 2,
-                    },
-                    cell_rect.width / 2 - (padding + thickness),
-                    cell_rect.width / 2 - padding,
-                    0,
-                    360,
-                    0,
-                    c.LIGHTGRAY,
+                drawO(
+                    cell_rect.x + padding,
+                    cell_rect.y + padding,
+                    cell_rect.width - (padding * 2),
+                    thickness,
                 );
             }
         }
     }
+}
+
+fn drawX(x: f32, y: f32, size: f32, thickness: f32) void {
+    c.DrawLineEx(
+        .{ .x = x + thickness, .y = y + thickness },
+        .{ .x = (x + size) - thickness, .y = (y + size) - thickness },
+        thickness,
+        colors.foreground,
+    );
+    c.DrawLineEx(
+        .{ .x = (x + size) - thickness, .y = y + thickness },
+        .{ .x = x + thickness, .y = (y + size) - thickness },
+        thickness,
+        colors.foreground,
+    );
+}
+
+fn drawO(x: f32, y: f32, size: f32, thinkness: f32) void {
+    c.DrawRing(
+        .{ .x = x + size / 2, .y = y + size / 2 },
+        (size / 2) - thinkness,
+        (size / 2),
+        0,
+        360,
+        0,
+        colors.foreground,
+    );
 }
 
 fn cellRect(screen_size: c.Vector2, x: usize, y: usize) c.Rectangle {
@@ -227,5 +244,6 @@ fn renderSize() c.Vector2 {
 const Game = @This();
 
 const c = @import("../c.zig");
+const colors = @import("../colors.zig");
 
 const std = @import("std");
