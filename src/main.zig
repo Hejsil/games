@@ -1,14 +1,17 @@
 pub fn main() !void {
     var game = Game{};
 
-    c.InitWindow(800, 450, "raylib");
+    c.SetConfigFlags(c.FLAG_WINDOW_RESIZABLE);
+    c.InitWindow(1920, 1080, "raylib");
+    c.SetTargetFPS(60);
 
     // Test
     while (!c.WindowShouldClose()) {
-        game.state.update();
+        game.state.updatePhase();
         c.BeginDrawing();
         c.ClearBackground(colors.background);
-        game.state.draw();
+        game.state.drawPhase();
+        c.DrawFPS(10, 10);
         c.EndDrawing();
     }
 }
@@ -20,16 +23,18 @@ const Game = struct {
 const State = union(enum) {
     main_menu: MainMenu,
     tic_tac_toe: TicTacToe,
+    bullet_hell: BulletHell,
+    tcg: Tcg,
 
-    pub fn update(state: *State) void {
+    pub fn updatePhase(state: *State) void {
         switch (state.*) {
-            inline else => |*s| s.update(),
+            inline else => |*s| s.updatePhase(),
         }
     }
 
-    pub fn draw(state: *State) void {
+    pub fn drawPhase(state: *State) void {
         switch (state.*) {
-            inline else => |*s| s.draw(),
+            inline else => |*s| s.drawPhase(),
         }
     }
 };
@@ -40,7 +45,11 @@ const MainMenu = struct {
     // Assumes `main_menu` is the first state
     const menu_items = std.meta.tags(std.meta.Tag(State))[1..];
 
-    fn update(menu: *MainMenu) void {
+    fn init() MainMenu {
+        return .{};
+    }
+
+    fn updatePhase(menu: *MainMenu) void {
         if (c.IsKeyPressed(c.KEY_DOWN)) {
             menu.selected += 1;
             menu.selected = @min(menu.selected, menu_items.len - 1);
@@ -51,12 +60,18 @@ const MainMenu = struct {
         if (c.IsKeyPressed(c.KEY_ENTER)) {
             const state: *State = @fieldParentPtr("main_menu", menu);
             state.* = switch (menu_items[menu.selected]) {
-                inline else => |tag| @unionInit(State, @tagName(tag), .{}),
+                inline else => |tag| blk: {
+                    var res = @unionInit(State, @tagName(tag), undefined);
+                    const field_ptr = &@field(res, @tagName(tag));
+                    const T = @TypeOf(field_ptr.*);
+                    field_ptr.* = T.init();
+                    break :blk res;
+                },
             };
         }
     }
 
-    fn draw(menu: *MainMenu) void {
+    fn drawPhase(menu: *MainMenu) void {
         const width: f32 = @floatFromInt(c.GetRenderWidth());
         const height: f32 = @floatFromInt(c.GetRenderHeight());
         const size = @min(width, height);
@@ -98,8 +113,12 @@ const MainMenu = struct {
     }
 };
 
-test {}
+test {
+    std.testing.refAllDecls(@This());
+}
 
+const BulletHell = @import("games/BulletHell.zig");
+const Tcg = @import("games/Tcg.zig");
 const TicTacToe = @import("games/TicTacToe.zig");
 
 const c = @import("c.zig");

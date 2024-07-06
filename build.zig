@@ -9,6 +9,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        // .use_llvm = false,
+        // .use_lld = false,
     });
     b.installArtifact(exe);
 
@@ -22,10 +24,12 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_exe_unit_tests.step);
 
-    exe.linkSystemLibrary2("raylib", .{});
-    exe.linkSystemLibrary2("GL", .{});
-    exe.linkSystemLibrary2("rt", .{});
-    exe.linkSystemLibrary2("dl", .{});
-    exe.linkSystemLibrary2("m", .{});
-    exe.linkSystemLibrary2("X11", .{});
+    for ([_]*std.Build.Step.Compile{ exe, exe_unit_tests }) |comp| {
+        comp.linkSystemLibrary2("raylib", .{});
+        comp.linkSystemLibrary2("GL", .{});
+        comp.linkSystemLibrary2("rt", .{});
+        comp.linkSystemLibrary2("dl", .{});
+        comp.linkSystemLibrary2("m", .{});
+        comp.linkSystemLibrary2("X11", .{});
+    }
 }

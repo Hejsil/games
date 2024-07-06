@@ -25,7 +25,11 @@ const winning_boards = [_]u16{
     0b0000000001010100,
 };
 
-pub fn update(game: *Game) void {
+pub fn init() Game {
+    return .{};
+}
+
+pub fn updatePhase(game: *Game) void {
     if (!c.IsMouseButtonPressed(c.MOUSE_BUTTON_LEFT))
         return;
 
@@ -42,7 +46,7 @@ pub fn update(game: *Game) void {
             if (x_is_set != 0 or o_is_set != 0)
                 continue;
 
-            const cell_rect = draw2d.getCell(row, column, grid);
+            const cell_rect = draw.getCell(row, column, grid);
             if (c.CheckCollisionPointRec(click_pos, cell_rect)) {
                 players_board.* |= @as(u16, 1) << pos;
                 game.player = game.player.next();
@@ -63,7 +67,7 @@ pub fn update(game: *Game) void {
     }
 }
 
-pub fn draw(game: *Game) void {
+pub fn drawPhase(game: *Game) void {
     const render_size = renderSize();
     const grid = gridOptions(render_size);
     const font_size = grid.thickness * 10;
@@ -88,26 +92,26 @@ pub fn draw(game: *Game) void {
     const score_symbol_x_off = grid.cell_size.x;
     const score_symbol_y = grid.cell_size.y * 0.35;
     const symbol_size = font_size * 0.75;
-    draw2d.x(.{
+    draw.x(.{
         .center = .{ .x = center_x - score_symbol_x_off, .y = score_symbol_y },
         .size = .{ .x = symbol_size, .y = symbol_size },
         .thickness = grid.thickness,
         .color = colors.foreground,
     });
-    draw2d.ring(.{
+    draw.ring(.{
         .center = .{ .x = center_x + score_symbol_x_off, .y = score_symbol_y },
         .radius = symbol_size / 2,
         .thickness = grid.thickness,
         .color = colors.foreground,
     });
 
-    draw2d.grid(grid);
+    draw.grid(grid);
 
     for (0..3) |row| {
         for (0..3) |column| {
-            const cell_rect = draw2d.getCell(row, column, grid);
+            const cell_rect = draw.getCell(row, column, grid);
             const padding = cell_rect.width / 10;
-            const cell_center = draw2d.Vector{
+            const cell_center = math.Vector{
                 .x = cell_rect.x + cell_rect.width / 2,
                 .y = cell_rect.y + cell_rect.height / 2,
             };
@@ -116,7 +120,7 @@ pub fn draw(game: *Game) void {
             const x_is_set: u1 = @truncate(game.bitboards[@intFromEnum(Player.x)] >> pos);
             const o_is_set: u1 = @truncate(game.bitboards[@intFromEnum(Player.o)] >> pos);
             if (x_is_set != 0) {
-                draw2d.x(.{
+                draw.x(.{
                     .center = cell_center,
                     .size = .{
                         .x = cell_rect.width - padding,
@@ -127,7 +131,7 @@ pub fn draw(game: *Game) void {
                 });
             }
             if (o_is_set != 0) {
-                draw2d.ring(.{
+                draw.ring(.{
                     .center = cell_center,
                     .radius = (cell_rect.width - padding) / 2,
                     .thickness = grid.thickness,
@@ -150,7 +154,7 @@ fn cellSize(screen_size: c.Vector2) f32 {
     return smallest_dim / 4;
 }
 
-fn gridPosition(screen_size: c.Vector2) c.Vector2 {
+fn gridPosition(screen_size: c.Vector2) math.Vector {
     const cell_size = cellSize(screen_size);
     return .{
         .x = screen_size.x / 2,
@@ -158,11 +162,11 @@ fn gridPosition(screen_size: c.Vector2) c.Vector2 {
     };
 }
 
-fn gridOptions(screen_size: c.Vector2) draw2d.GridOptions {
+fn gridOptions(screen_size: c.Vector2) draw.GridOptions {
     const grid_pos = gridPosition(screen_size);
     const cell_size = cellSize(screen_size);
     const thickness = cell_size / 16;
-    return draw2d.GridOptions{
+    return draw.GridOptions{
         .rows = 3,
         .columns = 3,
         .center = grid_pos,
@@ -174,8 +178,13 @@ fn gridOptions(screen_size: c.Vector2) draw2d.GridOptions {
 
 const Game = @This();
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 const c = @import("../c.zig");
 const colors = @import("../colors.zig");
-const draw2d = @import("../draw2d.zig");
+const draw = @import("../draw2d.zig");
+const math = @import("../math2d.zig");
 
 const std = @import("std");
